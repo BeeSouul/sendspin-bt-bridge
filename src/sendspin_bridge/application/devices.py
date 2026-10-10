@@ -176,9 +176,24 @@ def remove(device_id: str) -> dict[str, Any]:
     from sendspin_bridge.application import config as config_uc
     from sendspin_bridge.config import _player_id_from_mac, load_config
 
+    # A running speaker's id is its player id; a disabled one's is derived
+    # from its MAC. Either way the MAC names the config entry.
+    try:
+        running_mac = str(getattr(getattr(find_client(device_id), "bt_manager", None), "mac_address", "") or "")
+    except UseCaseError:
+        running_mac = ""
+
+    def _is_target(entry: dict) -> bool:
+        mac = str(entry.get("mac") or "")
+        if not mac:
+            return False
+        if running_mac:
+            return mac.upper() == running_mac.upper()
+        return _player_id_from_mac(mac) == device_id
+
     config = load_config()
     entries = list(config.get("BLUETOOTH_DEVICES") or [])
-    kept = [d for d in entries if not (d.get("mac") and _player_id_from_mac(str(d["mac"])) == device_id)]
+    kept = [d for d in entries if not _is_target(d)]
     if len(kept) == len(entries):
         raise UseCaseError(404, "unknown_device", f"Unknown device: {device_id}")
     config["BLUETOOTH_DEVICES"] = kept
@@ -187,7 +202,7 @@ def remove(device_id: str) -> dict[str, Any]:
     from sendspin_bridge.services.bluetooth.device_registry import get_device_registry_snapshot, set_disabled_devices
 
     disabled = get_device_registry_snapshot().disabled_devices
-    remaining = [d for d in disabled if not (d.get("mac") and _player_id_from_mac(str(d["mac"])) == device_id)]
+    remaining = [d for d in disabled if not _is_target(d)]
     if len(remaining) != len(disabled):
         set_disabled_devices(remaining)
     return {"removed": True, "reconfig": result.get("reconfig") or {}}

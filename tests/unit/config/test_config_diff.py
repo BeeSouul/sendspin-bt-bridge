@@ -187,6 +187,20 @@ def test_device_removed_emits_stop_client():
     assert act.mac == mac
 
 
+def test_removing_a_disabled_device_still_stops_its_client():
+    """A speaker disabled at runtime (by the user or by the bridge after
+    failed reconnects) keeps its client until restart. Removing it emitted no
+    action, so the removed speaker stayed on the page."""
+    mac = "AA:BB:CC:DD:EE:FF"
+    old = _config([_device(mac, enabled=False)])
+    new = _config([])
+
+    (act,) = diff_configs(old, new)
+    assert act.kind is ActionKind.STOP_CLIENT
+    assert act.mac == mac
+    assert act.fields == ["removed"]
+
+
 def test_device_added_emits_start_client():
     mac = "AA:BB:CC:DD:EE:FF"
     old = _config([])

@@ -349,6 +349,16 @@ class ReconfigOrchestrator:
                     client.stop_sendspin(),
                     description=f"stop_sendspin:{action.label or action.mac}",
                 )
+        if "removed" in action.fields:
+            # A disabled speaker keeps its client so it can be enabled again;
+            # a removed one is gone: stop its Bluetooth monitor and drop it.
+            bt_manager = getattr(client, "bt_manager", None)
+            if bt_manager is not None:
+                try:
+                    bt_manager.shutdown()
+                except Exception as exc:
+                    logger.debug("bt_manager.shutdown failed for %s: %s", action.label or action.mac, exc)
+            self._drop_from_registry((action.mac or "").upper())
         summary.stopped.append(action.to_summary())
 
     def _apply_start_client(
@@ -583,6 +593,10 @@ class ReconfigOrchestrator:
 
     def _rollback_started_client(self, mac_key: str) -> None:
         """Remove a client that failed its ``run()`` bootstrap from the registry."""
+        self._drop_from_registry(mac_key)
+
+    def _drop_from_registry(self, mac_key: str) -> None:
+        """Remove the client for *mac_key* from the registry and tell listeners."""
         try:
             import sendspin_bridge.bridge.state as _state
             from sendspin_bridge.services.bluetooth.device_registry import mutate_active_clients
@@ -604,13 +618,13 @@ class ReconfigOrchestrator:
         try:
             mutate_active_clients(_drop_by_mac)
         except Exception as exc:  # pragma: no cover
-            logger.debug("rollback mutate_active_clients failed: %s", exc)
+            logger.debug("mutate_active_clients failed: %s", exc)
             return
         if removed[0]:
             try:
                 _state.notify_status_changed()
             except Exception as exc:  # pragma: no cover
-                logger.debug("rollback notify_status_changed failed: %s", exc)
+                logger.debug("notify_status_changed failed: %s", exc)
 
     def _apply_global_broadcast(
         self,

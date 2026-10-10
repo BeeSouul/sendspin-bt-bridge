@@ -497,3 +497,27 @@ def test_apply_hot_routes_non_timeout_exception_to_errors_not_pending(monkeypatc
         assert "ValueError" in summary.errors[0]["error"]
     finally:
         loop.close()
+
+
+@pytest.mark.parametrize(("fields", "kept"), [(["removed"], False), (["enabled"], True)])
+def test_a_removed_speaker_leaves_the_registry_a_disabled_one_stays(fields, kept):
+    """Disabling keeps the client so it can be enabled again; removing it used
+    to keep it too, so a removed speaker stayed on the page as handed over."""
+    from sendspin_bridge.services.bluetooth import device_registry
+
+    client = MagicMock()
+    client.bt_manager.mac_address = "AA:BB:CC:DD:EE:FF"
+    other = MagicMock()
+    other.bt_manager.mac_address = "11:22:33:44:55:66"
+    device_registry.mutate_active_clients(lambda _current: [client, other])
+    try:
+        orch = ReconfigOrchestrator(None, _FakeSnapshot({"AA:BB:CC:DD:EE:FF": client}))
+        orch.apply([ReconfigAction(kind=ActionKind.STOP_CLIENT, mac="AA:BB:CC:DD:EE:FF", fields=fields, label="X")])
+
+        client.set_bt_management_enabled.assert_called_once_with(False)
+        active = device_registry.get_device_registry_snapshot().active_clients
+        assert (client in active) is kept
+        assert other in active
+        assert client.bt_manager.shutdown.called is not kept
+    finally:
+        device_registry.mutate_active_clients(lambda _current: [])

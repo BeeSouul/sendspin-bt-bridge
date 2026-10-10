@@ -231,3 +231,16 @@ def test_a_removed_disabled_speaker_leaves_the_disabled_list(api_client, registr
         assert left == ["AA:AA:AA:AA:AA:AA"]
     finally:
         device_registry.set_disabled_devices([])
+
+
+def test_removing_a_running_speaker_finds_it_by_its_player_id(api_client, registry, config_on_disk):
+    """A running speaker's id is its player id, which is not derived from its
+    MAC the way a disabled one's is; removing it from its menu answered 404."""
+    registry.append(_speaker(player_id="65c5ca96-running", mac=config_on_disk.other))
+
+    resp = api_client.delete("/api/v1/devices/65c5ca96-running")
+
+    assert resp.status_code == 200
+    saved = json.loads(config_on_disk.file.read_text())
+    assert [d["mac"] for d in saved["BLUETOOTH_DEVICES"]] == [MAC]
+    assert config_on_disk.unpaired == [config_on_disk.other]

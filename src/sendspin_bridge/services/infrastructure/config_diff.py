@@ -276,17 +276,18 @@ def _diff_device(
     old_enabled = bool(old_dev.get("enabled", True)) if old_dev else False
     new_enabled = bool(new_dev.get("enabled", True)) if new_dev else False
 
-    # Device removed entirely.
+    # Device removed entirely. Stop it even when it was disabled: a speaker
+    # disabled at runtime keeps its client until restart, and the stop is a
+    # no-op when there is none.
     if old_dev and not new_dev:
-        if old_enabled:
-            actions.append(
-                ReconfigAction(
-                    kind=ActionKind.STOP_CLIENT,
-                    mac=mac,
-                    fields=["removed"],
-                    label=_label_for_device(old_dev),
-                )
+        actions.append(
+            ReconfigAction(
+                kind=ActionKind.STOP_CLIENT,
+                mac=mac,
+                fields=["removed"],
+                label=_label_for_device(old_dev),
             )
+        )
         return actions
 
     # Newly added device.
