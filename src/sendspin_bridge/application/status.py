@@ -34,6 +34,19 @@ def _disabled(entry: dict) -> DisabledDevice:
     return DisabledDevice.model_validate({**entry, "id": _player_id_from_mac(str(mac)) if mac else None})
 
 
+def _disabled_running(device) -> DisabledDevice:
+    """A disabled speaker whose client still runs: its commands take the client's id."""
+    return DisabledDevice.model_validate(
+        {
+            "id": device.player_id,
+            "mac": device.bluetooth_mac,
+            "player_name": device.player_name,
+            "adapter": device.bluetooth_adapter,
+            "enabled": False,
+        }
+    )
+
+
 def build_status(*, auth_enabled: bool) -> BridgeStatus:
     """Bridge, devices and groups, with guidance — what the dashboard renders."""
     from sendspin_bridge.bridge import state
@@ -81,6 +94,10 @@ def build_status(*, auth_enabled: bool) -> BridgeStatus:
         ma_connected=snapshot.ma_connected,
         bridge_state=bridge_state,
     )
+    # A speaker disabled since the bridge started keeps its client until a
+    # restart; it belongs with the disabled speakers all the same.
+    running = [d for d in snapshot.devices if d.enabled]
+    off = [d for d in snapshot.devices if not d.enabled]
     info = state.get_bridge_system_info()
     bridge = Bridge(
         name=bridge_name(config),
@@ -96,8 +113,8 @@ def build_status(*, auth_enabled: bool) -> BridgeStatus:
         auth_enabled=auth_enabled,
         ma_connected=snapshot.ma_connected,
         ma_web_url=snapshot.ma_web_url,
-        device_count=len(snapshot.devices),
-        disabled_devices=[_disabled(d) for d in snapshot.disabled_devices],
+        device_count=len(running),
+        disabled_devices=[_disabled(d) for d in snapshot.disabled_devices] + [_disabled_running(d) for d in off],
         startup=StartupProgress(**startup) if startup else None,
         update_available=UpdateInfo(**snapshot.update_available) if snapshot.update_available else None,
         mock_runtime=snapshot.mock_runtime.to_dict() if snapshot.mock_runtime else None,
@@ -109,7 +126,7 @@ def build_status(*, auth_enabled: bool) -> BridgeStatus:
     )
     return BridgeStatus(
         bridge=bridge,
-        devices=[Device.from_status(device.to_dict()) for device in snapshot.devices],
+        devices=[Device.from_status(device.to_dict()) for device in running],
         groups=[Group.from_snapshot(group.to_dict()) for group in snapshot.groups],
     )
 

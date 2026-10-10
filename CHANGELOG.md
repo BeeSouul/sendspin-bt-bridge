@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Disabling a speaker moves it to the disabled speakers at once instead of
+  leaving it among the speakers as "Disabled / Handed over" until the
+  bridge restarts; enabling it there brings it back without a restart.
+
 ### Fixed
 
 - Removing a speaker that is running answered "Unknown device" and left it

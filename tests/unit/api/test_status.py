@@ -233,3 +233,23 @@ def test_the_bridge_carries_its_name(api_client, registry, monkeypatch, configur
     monkeypatch.delenv("BRIDGE_NAME", raising=False)
 
     assert api_client.get("/api/v1/bridge").json()["name"] == expected
+
+
+def test_a_speaker_disabled_since_start_is_listed_as_disabled(api_client, registry, tmp_config):
+    """Disabling a running speaker keeps its client until restart. It used to
+    stay among the speakers (as "Disabled / Handed over") instead of moving
+    to the disabled list; it moves at once now, with the id its commands take."""
+    import json
+
+    tmp_config.write_text(
+        json.dumps({"BLUETOOTH_DEVICES": [{"player_name": "Kitchen", "mac": "AA:BB:CC:DD:EE:FF", "enabled": False}]})
+    )
+    registry.append(_runtime_client("sendspin-kitchen", "Kitchen"))
+    registry.append(_runtime_client("sendspin-office", "Office"))
+
+    data = api_client.get("/api/v1/status").json()
+
+    assert [d["name"] for d in data["devices"]] == ["Office"]
+    (disabled,) = data["bridge"]["disabled_devices"]
+    assert (disabled["player_name"], disabled["id"], disabled["enabled"]) == ("Kitchen", "sendspin-kitchen", False)
+    assert data["bridge"]["device_count"] == 1
