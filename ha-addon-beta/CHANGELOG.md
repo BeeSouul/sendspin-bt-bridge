@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0-beta.21] - 2026-10-11
+
+### Changed
+
+- Disabling a speaker moves it to the disabled speakers at once instead of
+  leaving it among the speakers as "Disabled / Handed over" until the
+  bridge restarts; enabling it there brings it back without a restart.
+
+### Fixed
+
+- Removing a speaker that is running answered "Unknown device" and left it
+  in place; removing it from its menu or its settings now works.
+- A removed speaker no longer stays on the page as "Handed over" until the
+  bridge restarts, including one that was disabled since the last start
+  (by hand, or by the bridge after failed reconnects).
+- The confirmation for removing a speaker from its settings opened behind
+  the speaker's panel and could not be clicked.
+
 ## [3.0.0-beta.20] - 2026-10-10
 
 ### Fixed
