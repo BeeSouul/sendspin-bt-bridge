@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Changing the volume or mute with the speaker's own buttons now moves the
+  Music Assistant slider too. The bridge picked up the change and updated its
+  own interface, but never reported it back to Music Assistant.
+
 ## [2.77.0-rc.3] - 2026-10-10
 
 ### Fixed
